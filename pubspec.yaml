@@ -1,7 +1,6 @@
 name: akuntansi
 description: "Aplikasi Akuntansi"
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
@@ -10,19 +9,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
-
-  # Untuk menyimpan sesi login (apakah user sudah login atau belum)
   shared_preferences: ^2.3.2
-
-  # Untuk database lokal SQLite (menyimpan data transaksi & kategori)
   sqflite: ^2.3.3+1
-
-  # Untuk mendapatkan path direktori penyimpanan di device
   path: ^1.9.0
-
-  # Untuk format angka menjadi mata uang (Rp 1.000.000)
-  intl: ^0.19.0
+  intl: ^0.20.2
+  flutter_slidable: ^3.1.1
+  pdf: ^3.11.1
+  printing: ^5.13.1
+  excel: ^4.0.6
+  path_provider: ^2.1.4
+  share_plus: ^10.1.4
+  fl_chart: ^0.69.0   # Library untuk grafik/chart
 
 dev_dependencies:
   flutter_test:

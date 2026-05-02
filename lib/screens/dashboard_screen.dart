@@ -1,546 +1,568 @@
-// ============================================================
-// DASHBOARD SCREEN
-// Halaman utama setelah user berhasil login
-// Menampilkan:
-// - Ringkasan keuangan bulan ini (pemasukan, pengeluaran, selisih)
-// - Daftar 5 transaksi terbaru
-// - Navigasi ke menu lain (Transaksi, Laporan, dll)
-// ============================================================
-
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../utils/app_theme.dart';
+import '../utils/theme_provider.dart';
+import '../models/transaksi_model.dart';
+import 'transaksi/form_transaksi_screen.dart';
+import 'master/kategori_screen.dart';
+import 'laporan/laporan_screen.dart';
+import 'transaksi/list_transaksi_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
-
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // Service database untuk mengambil data transaksi
   final _db = DatabaseService();
+  int _currentIndex = 0;
 
-  // State untuk menyimpan data yang ditampilkan di dashboard
   String _username = 'Admin';
   double _totalPemasukan = 0;
   double _totalPengeluaran = 0;
-  bool _isLoading = true; // Tampilkan loading saat data sedang diambil
+  List<Transaksi> _transaksiTerbaru = [];
+  List<double> _chartPemasukan = List.filled(7, 0);
+  List<double> _chartPengeluaran = List.filled(7, 0);
+  bool _isLoading = true;
 
-  // Format mata uang Rupiah: Rp 1.000.000
   final _currencyFormat = NumberFormat.currency(
-    locale: 'id_ID',
-    symbol: 'Rp ',
-    decimalDigits: 0,
-  );
-
-  // Format nama bulan: Januari 2025
+      locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
   final _monthFormat = DateFormat('MMMM yyyy', 'id_ID');
 
   @override
   void initState() {
     super.initState();
-    // Muat data saat halaman pertama kali dibuka
     _loadData();
   }
 
-  // ============================================================
-  // LOAD DATA DASHBOARD
-  // Mengambil semua data yang dibutuhkan secara bersamaan
-  // menggunakan Future.wait agar lebih efisien
-  // ============================================================
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-
     final now = DateTime.now();
-
-    // Ambil semua data secara paralel (lebih cepat daripada satu per satu)
     final results = await Future.wait([
       AuthService.getUsername(),
       _db.getTotalPemasukan(now.month, now.year),
       _db.getTotalPengeluaran(now.month, now.year),
+      _db.getTransaksiTerbaru(limit: 5),
     ]);
 
-    if (!mounted) return;
+    final chartIn = List.filled(7, 0.0);
+    final chartOut = List.filled(7, 0.0);
+    for (int i = 0; i < 7; i++) {
+      final day = now.subtract(Duration(days: 6 - i));
+      final dari = DateTime(day.year, day.month, day.day);
+      final sampai = DateTime(day.year, day.month, day.day, 23, 59, 59);
+      final list = await _db.getTransaksiByRentang(dari, sampai);
+      for (final t in list) {
+        if (t.jenis == 'pemasukan') chartIn[i] += t.nominal;
+        else chartOut[i] += t.nominal;
+      }
+    }
 
+    if (!mounted) return;
     setState(() {
       _username = results[0] as String;
       _totalPemasukan = results[1] as double;
       _totalPengeluaran = results[2] as double;
+      _transaksiTerbaru = results[3] as List<Transaksi>;
+      _chartPemasukan = chartIn;
+      _chartPengeluaran = chartOut;
       _isLoading = false;
     });
   }
 
-  // ============================================================
-  // LOGOUT
-  // Tampilkan dialog konfirmasi sebelum logout
-  // ============================================================
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Konfirmasi Logout'),
-        content: const Text('Apakah kamu yakin ingin keluar?'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text('Logout'),
+        content: const Text('Yakin ingin keluar?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.danger,
-              minimumSize: const Size(80, 40),
-            ),
-            child: const Text('Logout'),
+            child: Text('Logout', style: TextStyle(color: AppTheme.danger)),
           ),
         ],
       ),
     );
-
     if (confirm == true) {
       await AuthService.logout();
       if (mounted) Navigator.of(context).pushReplacementNamed('/login');
     }
   }
 
+  void _bukaFormTransaksi(String jenis) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => FormTransaksiScreen(jenisDibuka: jenis),
+        transitionsBuilder: (_, anim, __, child) => SlideTransition(
+          position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+              .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+          child: child,
+        ),
+        transitionDuration: const Duration(milliseconds: 260),
+      ),
+    ).then((ok) { if (ok == true) _loadData(); });
+  }
+
+  void _showAddMenu(bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) {
+        final textPrim = isDark ? AppTheme.textPrimDark : AppTheme.textPrimLight;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 36, height: 4,
+                  decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 20),
+              Text('Tambah Transaksi',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textPrim)),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(child: _addMenuBtn('Pemasukan', Icons.arrow_downward_rounded,
+                    AppTheme.success, () { Navigator.pop(context); _bukaFormTransaksi('pemasukan'); })),
+                const SizedBox(width: 12),
+                Expanded(child: _addMenuBtn('Pengeluaran', Icons.arrow_upward_rounded,
+                    AppTheme.danger, () { Navigator.pop(context); _bukaFormTransaksi('pengeluaran'); })),
+              ]),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _addMenuBtn(String label, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(children: [
+          Icon(icon, color: color, size: 26),
+          const SizedBox(height: 6),
+          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13)),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Hitung selisih: positif = laba, negatif = rugi
-    final selisih = _totalPemasukan - _totalPengeluaran;
-    final isLaba = selisih >= 0;
-    final now = DateTime.now();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? AppTheme.bgDark : AppTheme.bgLight;
+    // surface = card biasa, surface2 = card elevated/highlighted
+    final surfaceColor = isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight;
+    final borderColor = isDark ? Colors.white.withOpacity(0.0) : Colors.black.withOpacity(0.0);
+
+    // 3 halaman: Beranda, Laporan, Kategori
+    final pages = [
+      _buildHome(isDark, bgColor, surfaceColor, borderColor),
+      const LaporanScreen(),
+      const KategoriScreen(),
+    ];
 
     return Scaffold(
-      backgroundColor: AppTheme.bgPage,
+      backgroundColor: bgColor,
+      body: IndexedStack(index: _currentIndex, children: pages),
+      bottomNavigationBar: _buildBottomNav(isDark, surfaceColor, borderColor),
+    );
+  }
 
-      // ── APP BAR ──────────────────────────────────────────────
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: const Text(
-          'Akuntansi',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
-            fontSize: 18,
-          ),
-        ),
-        actions: [
-          // Tombol logout di pojok kanan atas
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: TextButton.icon(
-              onPressed: _handleLogout,
-              icon: const Icon(Icons.logout, size: 16, color: AppTheme.danger),
-              label: const Text(
-                'Logout',
-                style: TextStyle(color: AppTheme.danger, fontSize: 13),
-              ),
-            ),
+  // ── BOTTOM NAV (layout sesuai sketsa: Beranda | Laporan | [+] | Kategori ... 4 slot) ──
+  Widget _buildBottomNav(bool isDark, Color surfaceColor, Color borderColor) {
+    final textSec = isDark ? AppTheme.textSecDark : AppTheme.textSecLight;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black.withOpacity(0.4) : Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: AppTheme.border),
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              // Beranda
+              _navItem(0, Icons.home_rounded, 'Beranda', isDark),
+              // Laporan
+              _navItem(1, Icons.bar_chart_rounded, 'Laporan', isDark),
+              // Tombol + di tengah (lebih besar)
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _showAddMenu(isDark),
+                  child: Center(
+                    child: Container(
+                      width: 52, height: 52,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [BoxShadow(
+                          color: AppTheme.primary.withOpacity(0.3),
+                          blurRadius: 12, offset: const Offset(0, 4),
+                        )],
+                      ),
+                      child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+                    ),
+                  ),
+                ),
+              ),
+              // Kategori
+              _navItem(2, Icons.category_rounded, 'Kategori', isDark),
+              // Akun (logout)
+              Expanded(
+                child: GestureDetector(
+                  onTap: _handleLogout,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.person_outline_rounded, color: AppTheme.danger, size: 24),
+                      const SizedBox(height: 2),
+                      Text('Akun', style: TextStyle(fontSize: 11, color: AppTheme.danger)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
 
-      body: _isLoading
-          // Tampilkan loading spinner saat data sedang dimuat
-          ? const Center(
-              child: CircularProgressIndicator(color: AppTheme.primary))
-          : RefreshIndicator(
-              // Tarik ke bawah untuk refresh data
-              onRefresh: _loadData,
-              color: AppTheme.primary,
-              child: SingleChildScrollView(
+  Widget _navItem(int index, IconData icon, String label, bool isDark) {
+    final isActive = _currentIndex == index;
+    final color = isActive ? AppTheme.primary
+        : (isDark ? AppTheme.textSecDark : AppTheme.textSecLight);
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _currentIndex = index),
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              decoration: BoxDecoration(
+                color: isActive ? AppTheme.primary.withOpacity(0.1) : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 2),
+            Text(label, style: TextStyle(fontSize: 11, color: color,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── HALAMAN BERANDA ────────────────────────────────────────
+  Widget _buildHome(bool isDark, Color bgColor, Color surfaceColor, Color borderColor) {
+    final textPrim = isDark ? AppTheme.textPrimDark : AppTheme.textPrimLight;
+    final textSec = isDark ? AppTheme.textSecDark : AppTheme.textSecLight;
+    final selisih = _totalPemasukan - _totalPengeluaran;
+    final isLaba = selisih >= 0;
+
+    return SafeArea(
+      child: RefreshIndicator(
+        onRefresh: _loadData,
+        color: AppTheme.primary,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppTheme.primary))
+            : SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── SAPAAN ───────────────────────────────────
-                    Text(
-                      'Halo, $_username 👋',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary,
+                    // Header
+                    Row(children: [
+                      Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Halo, $_username 👋',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textPrim)),
+                          Text(_monthFormat.format(DateTime.now()),
+                              style: TextStyle(fontSize: 12, color: textSec)),
+                        ],
+                      )),
+                      ValueListenableBuilder<ThemeMode>(
+                        valueListenable: themeProvider,
+                        builder: (_, __, ___) => IconButton(
+                          onPressed: themeProvider.toggleTheme,
+                          icon: Icon(
+                            themeProvider.isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                            color: textSec, size: 20,
+                          ),
+                        ),
                       ),
+                    ]),
+
+                    const SizedBox(height: 20),
+
+                    // Kartu selisih
+                    _cardSelisih(selisih, isLaba, isDark, surfaceColor, borderColor, textSec),
+
+                    const SizedBox(height: 10),
+
+                    // Stat pemasukan & pengeluaran
+                    Row(children: [
+                      Expanded(child: _statCard('Pemasukan', _totalPemasukan,
+                          Icons.arrow_downward_rounded, AppTheme.success, isDark, surfaceColor, borderColor)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _statCard('Pengeluaran', _totalPengeluaran,
+                          Icons.arrow_upward_rounded, AppTheme.danger, isDark, surfaceColor, borderColor)),
+                    ]),
+
+                    const SizedBox(height: 20),
+
+                    // Chart
+                    _buildChart(isDark, textPrim, textSec, surfaceColor, borderColor),
+
+                    const SizedBox(height: 20),
+
+                    // Transaksi terbaru
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Transaksi Terbaru', style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w700, color: textPrim)),
+                        GestureDetector(
+                          onTap: () => Navigator.push(context, MaterialPageRoute(
+                              builder: (_) => const ListTransaksiScreen()))
+                              .then((_) => _loadData()),
+                          child: Text('Lihat Semua', style: TextStyle(
+                              fontSize: 12, color: AppTheme.primary, fontWeight: FontWeight.w600)),
+                        ),
+                      ],
                     ),
-                    Text(
-                      'Ringkasan ${_monthFormat.format(now)}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ── KARTU RINGKASAN KEUANGAN ──────────────────
-                    // Menampilkan pemasukan, pengeluaran, dan selisih
-                    _buildRingkasanKeuangan(selisih, isLaba),
-
-                    const SizedBox(height: 24),
-
-                    // ── MENU NAVIGASI CEPAT ───────────────────────
-                    const Text(
-                      'Menu',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildMenuGrid(),
-
-                    const SizedBox(height: 24),
-
-                    // ── TRANSAKSI TERBARU ─────────────────────────
-                    const Text(
-                      'Transaksi Terbaru',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTransaksiTerbaru(),
+                    const SizedBox(height: 10),
+                    _listTransaksi(isDark, textPrim, textSec, surfaceColor, borderColor),
                   ],
                 ),
               ),
-            ),
+      ),
     );
   }
 
-  // ============================================================
-  // WIDGET: KARTU RINGKASAN KEUANGAN
-  // Menampilkan total pemasukan, pengeluaran, dan selisih (laba/rugi)
-  // ============================================================
-  Widget _buildRingkasanKeuangan(double selisih, bool isLaba) {
-    return Container(
+  Widget _cardSelisih(double selisih, bool isLaba, bool isDark, Color surfaceColor,
+      Color borderColor, Color textSec) {
+    final color = isLaba ? AppTheme.success : AppTheme.danger;
+    return ElevatedCard(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        // Gradient biru sebagai background kartu utama
-        gradient: const LinearGradient(
-          colors: [AppTheme.primary, AppTheme.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      color: isDark ? AppTheme.surface2Dark : AppTheme.surfaceLight,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Selisih Kas Bulan Ini', style: TextStyle(fontSize: 12, color: textSec)),
+        const SizedBox(height: 6),
+        Text(_currencyFormat.format(selisih.abs()),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800,
+                color: color, letterSpacing: -1)),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(isLaba ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                size: 13, color: color),
+            const SizedBox(width: 4),
+            Text(isLaba ? 'Laba Bersih' : 'Rugi',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+          ]),
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primary.withOpacity(0.3),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Label laba atau rugi
+      ]),
+    );
+  }
+
+  Widget _statCard(String label, double nominal, IconData icon, Color color,
+      bool isDark, Color surfaceColor, Color borderColor) {
+    final textPrim = isDark ? AppTheme.textPrimDark : AppTheme.textPrimLight;
+    final textSec = isDark ? AppTheme.textSecDark : AppTheme.textSecLight;
+    return ElevatedCard(
+      padding: const EdgeInsets.all(14),
+      radius: 16,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              isLaba ? '✅ Laba' : '⚠️ Rugi',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            width: 28, height: 28,
+            decoration: BoxDecoration(color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, color: color, size: 15),
           ),
-
-          const SizedBox(height: 12),
-
-          // Nominal selisih (laba/rugi)
-          Text(
-            _currencyFormat.format(selisih.abs()),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const Text(
-            'Selisih Kas Bulan Ini',
-            style: TextStyle(color: Colors.white70, fontSize: 12),
-          ),
-
-          const SizedBox(height: 16),
-          const Divider(color: Colors.white24),
-          const SizedBox(height: 12),
-
-          // Baris pemasukan & pengeluaran
-          Row(
-            children: [
-              // Kolom pemasukan
-              Expanded(
-                child: _buildKolomRingkasan(
-                  label: 'Pemasukan',
-                  nominal: _totalPemasukan,
-                  icon: Icons.arrow_downward_rounded,
-                  warna: Colors.greenAccent,
-                ),
-              ),
-              // Garis pemisah vertikal
-              Container(width: 1, height: 40, color: Colors.white24),
-              // Kolom pengeluaran
-              Expanded(
-                child: _buildKolomRingkasan(
-                  label: 'Pengeluaran',
-                  nominal: _totalPengeluaran,
-                  icon: Icons.arrow_upward_rounded,
-                  warna: Colors.redAccent.shade100,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(fontSize: 11, color: textSec)),
+        ]),
+        const SizedBox(height: 8),
+        Text(_currencyFormat.format(nominal),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textPrim),
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+      ]),
     );
   }
 
-  /// Widget kolom kecil di dalam kartu ringkasan (pemasukan/pengeluaran)
-  Widget _buildKolomRingkasan({
-    required String label,
-    required double nominal,
-    required IconData icon,
-    required Color warna,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: warna, size: 14),
-              const SizedBox(width: 4),
-              Text(label,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _currencyFormat.format(nominal),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
+  Widget _buildChart(bool isDark, Color textPrim, Color textSec,
+      Color surfaceColor, Color borderColor) {
+    final now = DateTime.now();
+    final labels = List.generate(7,
+        (i) => DateFormat('E', 'id_ID').format(now.subtract(Duration(days: 6 - i))));
+    final maxVal = [..._chartPemasukan, ..._chartPengeluaran]
+        .fold(0.0, (a, b) => a > b ? a : b);
+
+    return ElevatedCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text('7 Hari Terakhir',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textPrim)),
+          Row(children: [
+            _legend(AppTheme.success, 'Masuk'),
+            const SizedBox(width: 10),
+            _legend(AppTheme.danger, 'Keluar'),
+          ]),
+        ]),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 150,
+          child: maxVal == 0
+              ? Center(child: Text('Belum ada data',
+                  style: TextStyle(color: textSec, fontSize: 12)))
+              : BarChart(BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: maxVal * 1.3,
+                  barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (_) => isDark ? AppTheme.surfaceDark : Colors.white,
+                      getTooltipItem: (group, _, rod, rodIndex) => BarTooltipItem(
+                        '${rodIndex == 0 ? 'Masuk' : 'Keluar'}\n${_currencyFormat.format(rod.toY)}',
+                        TextStyle(
+                          color: rodIndex == 0 ? AppTheme.success : AppTheme.danger,
+                          fontSize: 10, fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    bottomTitles: AxisTitles(sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, _) {
+                        final i = value.toInt();
+                        return i >= 0 && i < 7
+                            ? Text(labels[i], style: TextStyle(fontSize: 10, color: textSec))
+                            : const SizedBox();
+                      },
+                    )),
+                    leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  gridData: FlGridData(
+                    drawVerticalLine: false,
+                    horizontalInterval: maxVal / 3,
+                    getDrawingHorizontalLine: (_) => FlLine(
+                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04),
+                      strokeWidth: 1,
+                    ),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  barGroups: List.generate(7, (i) => BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      BarChartRodData(toY: _chartPemasukan[i], color: AppTheme.success,
+                          width: 8, borderRadius: const BorderRadius.vertical(top: Radius.circular(4))),
+                      BarChartRodData(toY: _chartPengeluaran[i], color: AppTheme.danger,
+                          width: 8, borderRadius: const BorderRadius.vertical(top: Radius.circular(4))),
+                    ],
+                  )),
+                )),
+        ),
+      ]),
     );
   }
 
-  // ============================================================
-  // WIDGET: GRID MENU NAVIGASI
-  // Shortcut ke fitur-fitur utama aplikasi
-  // ============================================================
-  Widget _buildMenuGrid() {
-    // Daftar menu yang tersedia
-    final menus = [
-      {
-        'label': 'Pemasukan',
-        'icon': Icons.add_circle_outline_rounded,
-        'warna': AppTheme.success,
-        'bg': const Color(0xFFDCFCE7),
-      },
-      {
-        'label': 'Pengeluaran',
-        'icon': Icons.remove_circle_outline_rounded,
-        'warna': AppTheme.danger,
-        'bg': const Color(0xFFFEE2E2),
-      },
-      {
-        'label': 'Laporan',
-        'icon': Icons.bar_chart_rounded,
-        'warna': AppTheme.warning,
-        'bg': const Color(0xFFFEF3C7),
-      },
-      {
-        'label': 'Kategori',
-        'icon': Icons.category_outlined,
-        'warna': AppTheme.primary,
-        'bg': AppTheme.primaryLight,
-      },
-    ];
+  Widget _legend(Color color, String label) => Row(children: [
+    Container(width: 8, height: 8,
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+    const SizedBox(width: 4),
+    Text(label, style: const TextStyle(fontSize: 10)),
+  ]);
 
-    return GridView.builder(
-      shrinkWrap: true, // Menyesuaikan tinggi dengan konten
-      physics: const NeverScrollableScrollPhysics(), // Scroll dihandle parent
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4, // 4 menu dalam satu baris
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 0.85,
-      ),
-      itemCount: menus.length,
-      itemBuilder: (_, i) {
-        final menu = menus[i];
-        return GestureDetector(
-          onTap: () {
-            // TODO: Navigasi ke halaman masing-masing menu
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('${menu['label']} coming soon!'),
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 1),
+  Widget _listTransaksi(bool isDark, Color textPrim, Color textSec,
+      Color surfaceColor, Color borderColor) {
+    final textHint = isDark ? AppTheme.textHintDark : AppTheme.textHintLight;
+    if (_transaksiTerbaru.isEmpty) {
+      return ElevatedCard(
+        padding: const EdgeInsets.all(24),
+        radius: 16,
+        child: Center(child: Column(children: [
+          Icon(Icons.receipt_long_outlined, color: textHint, size: 36),
+          const SizedBox(height: 8),
+          Text('Belum ada transaksi', style: TextStyle(color: textSec, fontSize: 13)),
+        ])),
+      );
+    }
+    return ElevatedCard(
+      padding: EdgeInsets.zero,
+      radius: 16,
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _transaksiTerbaru.length,
+        separatorBuilder: (_, __) => Divider(height: 1,
+            color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05)),
+        itemBuilder: (_, i) {
+          final t = _transaksiTerbaru[i];
+          final isMasuk = t.jenis == 'pemasukan';
+          return ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                color: (isMasuk ? AppTheme.success : AppTheme.danger).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
               ),
-            );
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              color: menu['bg'] as Color,
-              borderRadius: BorderRadius.circular(12),
+              child: Icon(isMasuk ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                  color: isMasuk ? AppTheme.success : AppTheme.danger, size: 18),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(menu['icon'] as IconData,
-                    color: menu['warna'] as Color, size: 28),
-                const SizedBox(height: 6),
-                Text(
-                  menu['label'] as String,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: menu['warna'] as Color,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ============================================================
-  // WIDGET: DAFTAR TRANSAKSI TERBARU
-  // Mengambil 5 transaksi terbaru dari database
-  // ============================================================
-  Widget _buildTransaksiTerbaru() {
-    return FutureBuilder<List>(
-      // Ambil 5 transaksi terbaru dari database
-      future: _db.getTransaksiTerbaru(limit: 5),
-      builder: (context, snapshot) {
-        // Saat data sedang diambil
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        // Jika tidak ada transaksi sama sekali
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.border),
-            ),
-            child: const Center(
-              child: Column(
-                children: [
-                  Icon(Icons.receipt_long_outlined,
-                      color: AppTheme.textHint, size: 40),
-                  SizedBox(height: 8),
-                  Text(
-                    'Belum ada transaksi',
-                    style: TextStyle(color: AppTheme.textSecondary),
-                  ),
-                  Text(
-                    'Tambah transaksi pertamamu!',
-                    style:
-                        TextStyle(color: AppTheme.textHint, fontSize: 12),
-                  ),
-                ],
-              ),
+            title: Text(t.deskripsi, style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600, color: textPrim)),
+            subtitle: Text('${t.kategori} • ${DateFormat('d MMM', 'id_ID').format(t.tanggal)}',
+                style: TextStyle(fontSize: 11, color: textSec)),
+            trailing: Text(
+              '${isMasuk ? '+' : '-'}${_currencyFormat.format(t.nominal)}',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                  color: isMasuk ? AppTheme.success : AppTheme.danger),
             ),
           );
-        }
-
-        // Tampilkan daftar transaksi
-        final transaksiList = snapshot.data!;
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.border),
-          ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: transaksiList.length,
-            separatorBuilder: (_, __) =>
-                const Divider(height: 1, color: AppTheme.border),
-            itemBuilder: (_, i) {
-              final t = transaksiList[i];
-              final isPemasukan = t.jenis == 'pemasukan';
-
-              return ListTile(
-                // Ikon berbeda untuk pemasukan dan pengeluaran
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: isPemasukan
-                        ? const Color(0xFFDCFCE7)
-                        : const Color(0xFFFEE2E2),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    isPemasukan
-                        ? Icons.arrow_downward_rounded
-                        : Icons.arrow_upward_rounded,
-                    color: isPemasukan ? AppTheme.success : AppTheme.danger,
-                    size: 20,
-                  ),
-                ),
-                title: Text(
-                  t.deskripsi,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Text(
-                  '${t.kategori} • ${DateFormat('d MMM', 'id_ID').format(t.tanggal)}',
-                  style: const TextStyle(
-                      fontSize: 11, color: AppTheme.textSecondary),
-                ),
-                // Nominal dengan warna hijau untuk pemasukan, merah untuk pengeluaran
-                trailing: Text(
-                  '${isPemasukan ? '+' : '-'}${_currencyFormat.format(t.nominal)}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: isPemasukan ? AppTheme.success : AppTheme.danger,
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 }
