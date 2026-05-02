@@ -12,6 +12,7 @@
 // ============================================================
 
 import 'dart:io';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -48,6 +49,12 @@ class _LaporanScreenState extends State<LaporanScreen> {
   bool _isExportingPdf = false;
   bool _isExportingExcel = false;
 
+  // Data per kategori (untuk pie chart)
+  Map<String, double> _pemasukanPerKategori = {};
+  Map<String, double> _pengeluaranPerKategori = {};
+  int _touchedPieIndexPemasukan = -1;
+  int _touchedPieIndexPengeluaran = -1;
+
   // Format tanggal dan mata uang
   final _dateFormat = DateFormat('d MMM yyyy', 'id_ID');
   final _dateFormatFull = DateFormat('EEEE, d MMMM yyyy', 'id_ID');
@@ -78,10 +85,23 @@ class _LaporanScreenState extends State<LaporanScreen> {
       }
     }
 
+    // Hitung per kategori untuk pie chart
+    final Map<String, double> masukKat = {};
+    final Map<String, double> keluarKat = {};
+    for (final t in list) {
+      if (t.jenis == 'pemasukan') {
+        masukKat[t.kategori] = (masukKat[t.kategori] ?? 0) + t.nominal;
+      } else {
+        keluarKat[t.kategori] = (keluarKat[t.kategori] ?? 0) + t.nominal;
+      }
+    }
+
     setState(() {
       _transaksiList = list;
       _totalPemasukan = pemasukan;
       _totalPengeluaran = pengeluaran;
+      _pemasukanPerKategori = masukKat;
+      _pengeluaranPerKategori = keluarKat;
       _isLoading = false;
       _sudahFilter = true;
     });
@@ -615,6 +635,46 @@ class _LaporanScreenState extends State<LaporanScreen> {
 
               const SizedBox(height: 20),
 
+              // ── PIE CHART PER KATEGORI ───────────────────────
+              if (_pemasukanPerKategori.isNotEmpty ||
+                  _pengeluaranPerKategori.isNotEmpty) ...[
+                Text('Distribusi per Kategori',
+                    style: TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrim(context),
+                    )),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface(context),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.divider(context)),
+                  ),
+                  child: Column(
+                    children: [
+                      if (_pemasukanPerKategori.isNotEmpty)
+                        _buildPieChart(_pemasukanPerKategori,
+                            'Pemasukan', AppTheme.success,
+                            _touchedPieIndexPemasukan,
+                            (i) => setState(() => _touchedPieIndexPemasukan = i)),
+                      if (_pemasukanPerKategori.isNotEmpty &&
+                          _pengeluaranPerKategori.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Divider(color: AppTheme.divider(context)),
+                        ),
+                      if (_pengeluaranPerKategori.isNotEmpty)
+                        _buildPieChart(_pengeluaranPerKategori,
+                            'Pengeluaran', AppTheme.danger,
+                            _touchedPieIndexPengeluaran,
+                            (i) => setState(() => _touchedPieIndexPengeluaran = i)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
               // ── TOMBOL EXPORT ────────────────────────────────
               Text(
                 'Export Laporan',
@@ -830,6 +890,145 @@ class _LaporanScreenState extends State<LaporanScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  // ============================================================
+  // WIDGET: PIE CHART PER KATEGORI
+  // ============================================================
+  static const List<Color> _pieColors = [
+    Color(0xFF4F8EF7), Color(0xFF34D399), Color(0xFFF87171),
+    Color(0xFFFBBF24), Color(0xFF818CF8), Color(0xFF06B6D4),
+    Color(0xFFF97316), Color(0xFFEC4899), Color(0xFF84CC16),
+    Color(0xFFA78BFA),
+  ];
+
+  Widget _buildPieChart(Map<String, double> data, String judul, Color accentColor,
+      int touchedIndex, ValueChanged<int> onTouch) {
+    if (data.isEmpty) return const SizedBox.shrink();
+
+    final sorted = data.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final total = data.values.fold(0.0, (s, v) => s + v);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(judul, style: TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w700,
+            color: AppTheme.textPrim(context))),
+        const SizedBox(height: 16),
+        // Pie chart di tengah
+        SizedBox(
+          height: 180,
+          child: PieChart(
+            PieChartData(
+              sections: sorted.asMap().entries.map((e) {
+                final i = e.key;
+                final entry = e.value;
+                final isTouched = i == touchedIndex;
+                final pct = entry.value / total * 100;
+                return PieChartSectionData(
+                  value: entry.value,
+                  color: _pieColors[i % _pieColors.length],
+                  radius: isTouched ? 70 : 58,
+                  title: '${pct.toStringAsFixed(0)}%',
+                  titleStyle: TextStyle(
+                      fontSize: isTouched ? 13 : 11,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      shadows: const [Shadow(blurRadius: 4, color: Colors.black38)]),
+                  badgeWidget: isTouched ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _pieColors[i % _pieColors.length],
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [BoxShadow(
+                          color: Colors.black.withOpacity(0.2), blurRadius: 6)],
+                    ),
+                    child: Text(entry.key,
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 10,
+                            fontWeight: FontWeight.w700)),
+                  ) : null,
+                  badgePositionPercentageOffset: 1.3,
+                );
+              }).toList(),
+              sectionsSpace: 3,
+              centerSpaceRadius: 36,
+              pieTouchData: PieTouchData(
+                touchCallback: (event, response) {
+                  setState(() {
+                    if (!event.isInterestedForInteractions ||
+                        response?.touchedSection == null) {
+                      onTouch(-1);
+                      return;
+                    }
+                    onTouch(response!.touchedSection!.touchedSectionIndex);
+                  });
+                },
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Legenda di bawah chart (lebih readable)
+        ...sorted.asMap().entries.map((e) {
+          final i = e.key;
+          final entry = e.value;
+          final pct = entry.value / total * 100;
+          final isActive = i == touchedIndex;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? _pieColors[i % _pieColors.length].withOpacity(0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isActive
+                    ? _pieColors[i % _pieColors.length].withOpacity(0.4)
+                    : Colors.transparent,
+              ),
+            ),
+            child: Row(children: [
+              Container(
+                width: 12, height: 12,
+                decoration: BoxDecoration(
+                  color: _pieColors[i % _pieColors.length],
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(entry.key,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isActive ? FontWeight.w700 : FontWeight.normal,
+                        color: AppTheme.textPrim(context))),
+              ),
+              Text(_currencyFormat.format(entry.value),
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600,
+                      color: accentColor)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _pieColors[i % _pieColors.length].withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text('${pct.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                        fontSize: 10, fontWeight: FontWeight.w700,
+                        color: _pieColors[i % _pieColors.length])),
+              ),
+            ]),
+          );
+        }),
+      ],
     );
   }
 

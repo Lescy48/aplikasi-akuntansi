@@ -108,10 +108,10 @@ class _KategoriScreenState extends State<KategoriScreen>
       builder: (_) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
-            final isDark = context.isDark;
+            final isDark = ctx.isDark;
             final bgColor = isDark ? AppTheme.surfaceDark : Colors.white;
-            final textPrim = AppTheme.textPrim(context);
-            final textSec = AppTheme.textSec(context);
+            final textPrim = AppTheme.textPrim(ctx);
+            final textSec = AppTheme.textSec(ctx);
             final isGreen = jenis == 'pemasukan';
             final gradient = isGreen ? AppTheme.gradientSuccess : AppTheme.gradientDanger;
             final accentColor = isGreen ? AppTheme.success : AppTheme.danger;
@@ -122,7 +122,7 @@ class _KategoriScreenState extends State<KategoriScreen>
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               padding: EdgeInsets.fromLTRB(
-                  20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+                  20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
               child: Form(
                 key: formKey,
                 child: Column(
@@ -135,7 +135,7 @@ class _KategoriScreenState extends State<KategoriScreen>
                         margin: const EdgeInsets.only(top: 12, bottom: 20),
                         width: 40, height: 4,
                         decoration: BoxDecoration(
-                          color: AppTheme.textHint(context).withOpacity(0.4),
+                          color: AppTheme.textHint(ctx).withOpacity(0.4),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),

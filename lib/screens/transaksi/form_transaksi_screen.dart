@@ -29,7 +29,8 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
 
 class FormTransaksiScreen extends StatefulWidget {
   final String jenisDibuka;
-  const FormTransaksiScreen({super.key, this.jenisDibuka = 'pemasukan'});
+  final Transaksi? transaksiEdit; // null = tambah baru, isi = mode edit
+  const FormTransaksiScreen({super.key, this.jenisDibuka = 'pemasukan', this.transaksiEdit});
 
   @override
   State<FormTransaksiScreen> createState() => _FormTransaksiScreenState();
@@ -62,6 +63,17 @@ class _FormTransaksiScreenState extends State<FormTransaksiScreen> {
   void initState() {
     super.initState();
     _jenis = widget.jenisDibuka;
+    // Mode edit: isi field dengan data transaksi yang ada
+    if (widget.transaksiEdit != null) {
+      final t = widget.transaksiEdit!;
+      _jenis = t.jenis;
+      _tanggal = t.tanggal;
+      _metodeBayar = t.metodeBayar;
+      _deskripsiController.text = t.deskripsi;
+      _nominalController.text = NumberFormat('#,###', 'id_ID').format(t.nominal.toInt());
+      _catatanController.text = t.catatan ?? '';
+      _kategoriDipilih = t.kategori;
+    }
     _loadKategori();
   }
 
@@ -77,7 +89,11 @@ class _FormTransaksiScreenState extends State<FormTransaksiScreen> {
     final list = await _db.getKategoriByJenis(_jenis);
     setState(() {
       _daftarKategori = list;
-      _kategoriDipilih = list.isNotEmpty ? list.first.nama : null;
+      // Mode tambah baru: pilih kategori pertama sebagai default
+      // Mode edit: pertahankan kategori dari transaksi
+      if (_kategoriDipilih == null) {
+        _kategoriDipilih = list.isNotEmpty ? list.first.nama : null;
+      }
     });
   }
 
@@ -120,6 +136,7 @@ class _FormTransaksiScreenState extends State<FormTransaksiScreen> {
         .replaceAll(RegExp(r'[^0-9]'), '').trim();
 
     final transaksi = Transaksi(
+      id: widget.transaksiEdit?.id, // pertahankan ID saat edit
       jenis: _jenis,
       nominal: double.parse(nominalBersih),
       kategori: _kategoriDipilih!,
@@ -130,10 +147,16 @@ class _FormTransaksiScreenState extends State<FormTransaksiScreen> {
       tanggal: _tanggal,
     );
 
-    await _db.tambahTransaksi(transaksi);
+    if (widget.transaksiEdit != null) {
+      await _db.updateTransaksi(transaksi);
+    } else {
+      await _db.tambahTransaksi(transaksi);
+    }
     if (!mounted) return;
     setState(() => _isLoading = false);
-    _showSnackbar('Transaksi berhasil disimpan ✓');
+    _showSnackbar(widget.transaksiEdit != null
+        ? 'Transaksi berhasil diperbarui ✓'
+        : 'Transaksi berhasil disimpan ✓');
     await Future.delayed(const Duration(milliseconds: 600));
     if (mounted) Navigator.pop(context, true);
   }
@@ -170,7 +193,7 @@ class _FormTransaksiScreenState extends State<FormTransaksiScreen> {
           icon: Icon(Icons.arrow_back, color: textPrim),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Tambah Transaksi',
+        title: Text(widget.transaksiEdit != null ? 'Edit Transaksi' : 'Tambah Transaksi',
             style: TextStyle(fontWeight: FontWeight.w700, color: textPrim, fontSize: 18)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
@@ -193,7 +216,9 @@ class _FormTransaksiScreenState extends State<FormTransaksiScreen> {
           child: _isLoading
               ? const SizedBox(height: 20, width: 20,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text('Simpan ${isPemasukan ? 'Pemasukan' : 'Pengeluaran'}',
+              : Text(widget.transaksiEdit != null
+                  ? 'Perbarui ${isPemasukan ? 'Pemasukan' : 'Pengeluaran'}'
+                  : 'Simpan ${isPemasukan ? 'Pemasukan' : 'Pengeluaran'}',
                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         ),
       ),
@@ -283,7 +308,7 @@ class _FormTransaksiScreenState extends State<FormTransaksiScreen> {
   Widget _buildTabJenis(Color textSec) {
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
+        color: context.isDark
             ? Colors.white.withOpacity(0.08)
             : Colors.black.withOpacity(0.06),
         borderRadius: BorderRadius.circular(12),
@@ -359,8 +384,7 @@ class _FormTransaksiScreenState extends State<FormTransaksiScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? const Color(0xFF1E293B) : Colors.white,
+          color: AppTheme.surface(context),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: borderColor),
         ),
@@ -381,17 +405,44 @@ class _FormTransaksiScreenState extends State<FormTransaksiScreen> {
 
   Widget _buildDropdownKategori(Color textHint) {
     if (_daftarKategori.isEmpty) {
-      return Text('Memuat kategori...',
-          style: TextStyle(color: textHint));
+      return Text('Memuat kategori...', style: TextStyle(color: textHint));
     }
+    final isDark = context.isDark;
+    final textPrim = AppTheme.textPrim(context);
+
+    final selectedKat = _daftarKategori.firstWhere(
+      (k) => k.nama == _kategoriDipilih,
+      orElse: () => _daftarKategori.first,
+    );
+    final cp = int.tryParse(
+          selectedKat.icon.startsWith('0x')
+              ? selectedKat.icon.substring(2) : selectedKat.icon,
+          radix: 16) ?? 0xe867;
+
     return DropdownButtonFormField<String>(
       value: _kategoriDipilih,
+      dropdownColor: isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight,
+      style: TextStyle(color: textPrim, fontSize: 14),
       decoration: InputDecoration(
-        prefixIcon: Icon(Icons.category_outlined, color: textHint, size: 20),
+        prefixIcon: Icon(
+          IconData(cp, fontFamily: 'MaterialIcons'),
+          color: textHint, size: 20,
+        ),
       ),
-      items: _daftarKategori
-          .map((k) => DropdownMenuItem(value: k.nama, child: Text(k.nama)))
-          .toList(),
+      items: _daftarKategori.map((k) {
+        final icp = int.tryParse(
+              k.icon.startsWith('0x') ? k.icon.substring(2) : k.icon,
+              radix: 16) ?? 0xe867;
+        return DropdownMenuItem(
+          value: k.nama,
+          child: Row(children: [
+            Icon(IconData(icp, fontFamily: 'MaterialIcons'),
+                color: textHint, size: 20),
+            const SizedBox(width: 10),
+            Text(k.nama, style: TextStyle(color: textPrim, fontSize: 14)),
+          ]),
+        );
+      }).toList(),
       onChanged: (val) => setState(() => _kategoriDipilih = val),
       validator: (val) =>
           val == null ? 'Pilih kategori terlebih dahulu' : null,

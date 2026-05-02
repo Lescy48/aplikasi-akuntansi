@@ -189,13 +189,21 @@ class DatabaseService {
   // Fungsi khusus untuk menghitung ringkasan keuangan bulan ini
   // ============================================================
 
+  /// Helper: hari terakhir bulan tertentu (aman untuk Desember)
+  DateTime _akhirBulan(int bulan, int tahun) {
+    final tahunBerikut = bulan == 12 ? tahun + 1 : tahun;
+    final bulanBerikut = bulan == 12 ? 1 : bulan + 1;
+    return DateTime(tahunBerikut, bulanBerikut, 1)
+        .subtract(const Duration(seconds: 1));
+  }
+
   /// Hitung total pemasukan pada bulan & tahun tertentu
   Future<double> getTotalPemasukan(int bulan, int tahun) async {
     final db = await database;
 
     // Tentukan rentang awal dan akhir bulan
     final awalBulan = DateTime(tahun, bulan, 1);
-    final akhirBulan = DateTime(tahun, bulan + 1, 0, 23, 59, 59);
+    final akhirBulan = _akhirBulan(bulan, tahun);
 
     final result = await db.rawQuery('''
       SELECT COALESCE(SUM(nominal), 0) as total
@@ -213,7 +221,7 @@ class DatabaseService {
     final db = await database;
 
     final awalBulan = DateTime(tahun, bulan, 1);
-    final akhirBulan = DateTime(tahun, bulan + 1, 0, 23, 59, 59);
+    final akhirBulan = _akhirBulan(bulan, tahun);
 
     final result = await db.rawQuery('''
       SELECT COALESCE(SUM(nominal), 0) as total
