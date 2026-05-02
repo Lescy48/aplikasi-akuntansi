@@ -55,125 +55,227 @@ class _KategoriScreenState extends State<KategoriScreen>
     });
   }
 
+  // Daftar icon yang bisa dipilih user
+  static const List<Map<String, dynamic>> _iconOptions = [
+    // Pekerjaan & Keuangan
+    {'icon': 0xe8d6, 'label': 'Kerja'},           // work
+    {'icon': 0xe838, 'label': 'Bintang'},          // star
+    {'icon': 0xe850, 'label': 'Dompet'},           // account_balance_wallet
+    {'icon': 0xea12, 'label': 'Toko'},             // storefront
+    {'icon': 0xe6e1, 'label': 'Grafik'},           // show_chart
+    {'icon': 0xe2eb, 'label': 'Tabungan'},         // savings
+    // Makanan & Minuman
+    {'icon': 0xe56c, 'label': 'Makan'},            // restaurant
+    {'icon': 0xe541, 'label': 'Kafe'},             // local_cafe
+    {'icon': 0xe547, 'label': 'Groceri'},          // local_grocery_store
+    {'icon': 0xef63, 'label': 'Bayar'},            // payments
+    {'icon': 0xe231, 'label': 'ATM'},              // local_atm
+    {'icon': 0xf05b, 'label': 'Jual'},             // sell
+    // Transport
+    {'icon': 0xe1d0, 'label': 'Mobil'},            // directions_car
+    {'icon': 0xe1d6, 'label': 'Bus'},              // directions_bus
+    {'icon': 0xe539, 'label': 'Pesawat'},          // flight
+    {'icon': 0xe88a, 'label': 'Rumah'},            // home
+    {'icon': 0xe63e, 'label': 'Wifi'},             // wifi
+    {'icon': 0xeb43, 'label': 'Gym'},              // fitness_center
+    // Belanja & Gaya Hidup
+    {'icon': 0xf1cc, 'label': 'Belanja'},          // shopping_bag
+    {'icon': 0xf19e, 'label': 'Pakaian'},          // checkroom
+    {'icon': 0xea38, 'label': 'Games'},            // sports_esports
+    {'icon': 0xe02c, 'label': 'Film'},             // movie
+    {'icon': 0xe405, 'label': 'Musik'},            // music_note
+    {'icon': 0xe8f6, 'label': 'Kado'},             // card_giftcard
+    // Kesehatan & Pendidikan
+    {'icon': 0xe87d, 'label': 'Kesehatan'},        // favorite
+    {'icon': 0xf109, 'label': 'Medis'},            // medical_services
+    {'icon': 0xe80c, 'label': 'Sekolah'},          // school
+    {'icon': 0xe867, 'label': 'Lainnya'},          // label
+  ];
+
   Future<void> _tambahKategori() async {
     final jenis = _tabController.index == 0 ? 'pemasukan' : 'pengeluaran';
     final controller = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    String selectedIcon = '0xe867';
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF1E293B) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (_) {
-        final isDark = context.isDark;
-        final textPrim = AppTheme.textPrim(context);
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-              20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final isDark = context.isDark;
+            final bgColor = isDark ? AppTheme.surfaceDark : Colors.white;
+            final textPrim = AppTheme.textPrim(context);
+            final textSec = AppTheme.textSec(context);
+            final isGreen = jenis == 'pemasukan';
+            final gradient = isGreen ? AppTheme.gradientSuccess : AppTheme.gradientDanger;
+            final accentColor = isGreen ? AppTheme.success : AppTheme.danger;
+
+            return Container(
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                  20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 40, height: 40,
-                      decoration: BoxDecoration(
-                        gradient: jenis == 'pemasukan'
-                            ? AppTheme.gradientSuccess : AppTheme.gradientDanger,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.category_outlined,
-                          color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Tambah Kategori',
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: textPrim)),
-                        Text(
-                          jenis == 'pemasukan' ? 'Pemasukan' : 'Pengeluaran',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: jenis == 'pemasukan'
-                                ? AppTheme.success : AppTheme.danger,
-                          ),
+                    // Handle bar
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 12, bottom: 20),
+                        width: 40, height: 4,
+                        decoration: BoxDecoration(
+                          color: AppTheme.textHint(context).withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(2),
                         ),
-                      ],
+                      ),
+                    ),
+
+                    // Header
+                    Row(children: [
+                      Container(
+                        width: 44, height: 44,
+                        decoration: BoxDecoration(
+                          gradient: gradient,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          IconData(int.parse(selectedIcon), fontFamily: 'MaterialIcons'),
+                          color: Colors.white, size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Tambah Kategori',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textPrim)),
+                        Text(isGreen ? 'Pemasukan' : 'Pengeluaran',
+                            style: TextStyle(fontSize: 12, color: accentColor, fontWeight: FontWeight.w500)),
+                      ]),
+                    ]),
+
+                    const SizedBox(height: 20),
+
+                    // Input nama
+                    TextFormField(
+                      controller: controller,
+                      autofocus: true,
+                      textCapitalization: TextCapitalization.words,
+                      style: TextStyle(color: textPrim),
+                      decoration: const InputDecoration(
+                        labelText: 'Nama Kategori',
+                        hintText: 'Contoh: Freelance, Parkir, dll',
+                        prefixIcon: Icon(Icons.label_outline, color: AppTheme.primary, size: 20),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) return 'Nama kategori wajib diisi';
+                        if (val.trim().length < 2) return 'Minimal 2 karakter';
+                        final existingList = jenis == 'pemasukan'
+                            ? _kategoriPemasukan : _kategoriPengeluaran;
+                        final sudahAda = existingList.any(
+                            (k) => k.nama.toLowerCase() == val.trim().toLowerCase());
+                        if (sudahAda) return 'Kategori ini sudah ada';
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Label icon
+                    Text('Pilih Icon',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textPrim)),
+                    const SizedBox(height: 10),
+
+                    // Icon grid picker
+                    SizedBox(
+                      height: 220,
+                      child: GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 6,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                        ),
+                        itemCount: _iconOptions.length,
+                        itemBuilder: (_, i) {
+                          final opt = _iconOptions[i];
+                          final codepoint = opt['icon'] as int;
+                          final codepointStr = '0x${codepoint.toRadixString(16)}';
+                          final isSelected = selectedIcon == codepointStr;
+                          return GestureDetector(
+                            onTap: () => setModalState(() => selectedIcon = codepointStr),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? accentColor.withOpacity(0.15)
+                                    : (isDark ? AppTheme.surface2Dark : const Color(0xFFF5F7FF)),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected ? accentColor : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Icon(
+                                IconData(codepoint, fontFamily: 'MaterialIcons'),
+                                color: isSelected ? accentColor : textSec,
+                                size: 20,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Tombol simpan
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: gradient,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (!formKey.currentState!.validate()) return;
+                          final kategori = Kategori(
+                            nama: controller.text.trim(),
+                            jenis: jenis,
+                            icon: selectedIcon,
+                          );
+                          await _db.tambahKategori(kategori);
+                          if (mounted) {
+                            Navigator.pop(context);
+                            _loadData();
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text('Kategori "${kategori.nama}" berhasil ditambahkan'),
+                              backgroundColor: AppTheme.success,
+                              behavior: SnackBarBehavior.floating,
+                            ));
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(double.infinity, 52),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text('Simpan Kategori',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: controller,
-                  autofocus: true,
-                  textCapitalization: TextCapitalization.words,
-                  style: TextStyle(color: textPrim),
-                  decoration: const InputDecoration(
-                    labelText: 'Nama Kategori',
-                    hintText: 'Contoh: Freelance, Parkir, dll',
-                    prefixIcon: Icon(Icons.label_outline,
-                        color: AppTheme.primary, size: 20),
-                  ),
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) {
-                      return 'Nama kategori wajib diisi';
-                    }
-                    if (val.trim().length < 2) {
-                      return 'Minimal 2 karakter';
-                    }
-                    final existingList = jenis == 'pemasukan'
-                        ? _kategoriPemasukan : _kategoriPengeluaran;
-                    final sudahAda = existingList.any(
-                        (k) => k.nama.toLowerCase() == val.trim().toLowerCase());
-                    if (sudahAda) return 'Kategori ini sudah ada';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: jenis == 'pemasukan'
-                        ? AppTheme.gradientSuccess : AppTheme.gradientDanger,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      if (!formKey.currentState!.validate()) return;
-                      final kategori = Kategori(
-                          nama: controller.text.trim(), jenis: jenis);
-                      await _db.tambahKategori(kategori);
-                      if (mounted) {
-                        Navigator.pop(context);
-                        _loadData();
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(
-                              'Kategori "${kategori.nama}" berhasil ditambahkan'),
-                          backgroundColor: AppTheme.success,
-                          behavior: SnackBarBehavior.floating,
-                        ));
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.bg(context),
-                      shadowColor: Colors.transparent,
-                    ),
-                    child: const Text('Simpan Kategori'),
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -232,10 +334,7 @@ class _KategoriScreenState extends State<KategoriScreen>
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: AppTheme.bg(context),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: textPrim),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         title: Text('Master Kategori',
             style: TextStyle(
                 fontWeight: FontWeight.w700, color: textPrim, fontSize: 18)),
@@ -333,8 +432,10 @@ class _KategoriScreenState extends State<KategoriScreen>
                           ? AppTheme.gradientSuccess : AppTheme.gradientDanger,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.label_rounded,
-                        color: Colors.white, size: 20),
+                    child: Icon(
+                      IconData(int.parse(kategori.icon), fontFamily: 'MaterialIcons'),
+                      color: Colors.white, size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

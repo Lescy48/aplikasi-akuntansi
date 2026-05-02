@@ -148,19 +148,7 @@ class ElevatedCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(radius),
-          boxShadow: isDark
-              ? [
-                  BoxShadow(color: Colors.black.withOpacity(0.4),
-                      blurRadius: 16, offset: const Offset(0, 4)),
-                  BoxShadow(color: Colors.black.withOpacity(0.2),
-                      blurRadius: 4, offset: const Offset(0, 1)),
-                ]
-              : [
-                  BoxShadow(color: const Color(0xFF4F8EF7).withOpacity(0.08),
-                      blurRadius: 20, offset: const Offset(0, 4)),
-                  BoxShadow(color: Colors.black.withOpacity(0.04),
-                      blurRadius: 6, offset: const Offset(0, 2)),
-                ],
+          boxShadow: const [],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(radius),

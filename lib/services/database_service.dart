@@ -46,9 +46,17 @@ class DatabaseService {
     // Buka (atau buat baru jika belum ada) database
     return await openDatabase(
       path,
-      version: 1, // Versi database (naikkan jika ada perubahan struktur)
-      onCreate: _onCreate, // Fungsi yang dijalankan saat database pertama dibuat
+      version: 2,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+          "ALTER TABLE kategori ADD COLUMN icon TEXT NOT NULL DEFAULT '0xe867'");
+    }
   }
 
   // ============================================================
@@ -61,7 +69,8 @@ class DatabaseService {
       CREATE TABLE kategori (
         id        INTEGER PRIMARY KEY AUTOINCREMENT,
         nama      TEXT NOT NULL,
-        jenis     TEXT NOT NULL CHECK(jenis IN ('pemasukan', 'pengeluaran'))
+        jenis     TEXT NOT NULL CHECK(jenis IN ('pemasukan', 'pengeluaran')),
+        icon      TEXT NOT NULL DEFAULT '0xe867'
       )
     ''');
 
@@ -88,19 +97,28 @@ class DatabaseService {
   // Data awal yang langsung tersedia saat install
   // ============================================================
   Future<void> _insertKategoriDefault(Database db) async {
-    // Kategori pemasukan default
-    final kategoriPemasukan = ['Gaji', 'Bonus', 'Penjualan', 'Investasi', 'Lainnya'];
-    for (final nama in kategoriPemasukan) {
-      await db.insert('kategori', {'nama': nama, 'jenis': 'pemasukan'});
+    final pemasukan = [
+      {'nama': 'Gaji',       'icon': '0xe8d6'}, // work
+      {'nama': 'Bonus',      'icon': '0xe838'}, // star
+      {'nama': 'Penjualan',  'icon': '0xea12'}, // storefront
+      {'nama': 'Investasi',  'icon': '0xe6e1'}, // show_chart
+      {'nama': 'Lainnya',    'icon': '0xe867'}, // label
+    ];
+    for (final k in pemasukan) {
+      await db.insert('kategori', {'nama': k['nama'], 'jenis': 'pemasukan', 'icon': k['icon']});
     }
 
-    // Kategori pengeluaran default
-    final kategoriPengeluaran = [
-      'Makan & Minum', 'Transport', 'Listrik & Air',
-      'Belanja', 'Kesehatan', 'Hiburan', 'Lainnya'
+    final pengeluaran = [
+      {'nama': 'Belanja',       'icon': '0xf1cc'}, // shopping_bag
+      {'nama': 'Hiburan',       'icon': '0xe02c'}, // movie
+      {'nama': 'Kesehatan',     'icon': '0xe87d'}, // favorite
+      {'nama': 'Lainnya',       'icon': '0xe867'}, // label
+      {'nama': 'Listrik & Air', 'icon': '0xea23'}, // bolt
+      {'nama': 'Makan & Minum', 'icon': '0xe56c'}, // restaurant
+      {'nama': 'Transport',     'icon': '0xe1d0'}, // directions_car
     ];
-    for (final nama in kategoriPengeluaran) {
-      await db.insert('kategori', {'nama': nama, 'jenis': 'pengeluaran'});
+    for (final k in pengeluaran) {
+      await db.insert('kategori', {'nama': k['nama'], 'jenis': 'pengeluaran', 'icon': k['icon']});
     }
   }
 

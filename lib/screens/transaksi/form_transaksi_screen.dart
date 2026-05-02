@@ -231,7 +231,9 @@ class _FormTransaksiScreenState extends State<FormTransaksiScreen> {
                 ),
                 validator: (val) {
                   if (val == null || val.isEmpty) return 'Nominal wajib diisi';
-                  if (int.tryParse(val) == null || int.parse(val) <= 0) {
+                  final clean = val.replaceAll(RegExp(r'[^0-9]'), '');
+                  final parsed = int.tryParse(clean);
+                  if (parsed == null || parsed <= 0) {
                     return 'Nominal harus lebih dari 0';
                   }
                   return null;

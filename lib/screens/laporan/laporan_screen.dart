@@ -481,11 +481,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
         backgroundColor: AppTheme.bg(context),
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back,
-              color: AppTheme.textPrim(context)),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         title: Text(
           'Laporan Keuangan',
           style: TextStyle(
@@ -587,7 +583,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
                       label: 'Pemasukan',
                       nominal: _totalPemasukan,
                       warna: AppTheme.success,
-                      bg: const Color(0xFFDCFCE7),
+                      bg: AppTheme.success.withOpacity(isDark ? 0.15 : 0.12),
                       icon: Icons.arrow_downward_rounded,
                     ),
                   ),
@@ -597,7 +593,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
                       label: 'Pengeluaran',
                       nominal: _totalPengeluaran,
                       warna: AppTheme.danger,
-                      bg: const Color(0xFFFEE2E2),
+                      bg: AppTheme.danger.withOpacity(isDark ? 0.15 : 0.12),
                       icon: Icons.arrow_upward_rounded,
                     ),
                   ),
@@ -609,8 +605,8 @@ class _LaporanScreenState extends State<LaporanScreen> {
                 nominal: selisih.abs(),
                 warna: isLaba ? AppTheme.primary : AppTheme.warning,
                 bg: isLaba
-                    ? AppTheme.primary.withOpacity(0.15)
-                    : const Color(0xFFFEF3C7),
+                    ? AppTheme.primary.withOpacity(isDark ? 0.2 : 0.12)
+                    : AppTheme.warning.withOpacity(isDark ? 0.2 : 0.15),
                 icon: isLaba
                     ? Icons.trending_up_rounded
                     : Icons.trending_down_rounded,
@@ -730,7 +726,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppTheme.surface(context),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppTheme.divider(context)),
                   ),
@@ -758,7 +754,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
                 // Daftar transaksi hasil filter
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppTheme.surface(context),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppTheme.divider(context)),
                   ),
@@ -777,8 +773,8 @@ class _LaporanScreenState extends State<LaporanScreen> {
                           height: 40,
                           decoration: BoxDecoration(
                             color: isPemasukan
-                                ? const Color(0xFFDCFCE7)
-                                : const Color(0xFFFEE2E2),
+                                ? AppTheme.success.withOpacity(isDark ? 0.2 : 0.12)
+                                : AppTheme.danger.withOpacity(isDark ? 0.2 : 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
@@ -852,7 +848,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
       final borderColor = dark
           ? Colors.white.withOpacity(0.1)
           : Colors.indigo.withOpacity(0.12);
-      final bgColor = dark ? const Color(0xFF1E293B) : Colors.white;
+      final bgColor = dark ? AppTheme.surface2Dark : Colors.white;
 
       return GestureDetector(
         onTap: onTap,

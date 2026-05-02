@@ -168,9 +168,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? AppTheme.bgDark : AppTheme.bgLight;
-    // surface = card biasa, surface2 = card elevated/highlighted
     final surfaceColor = isDark ? AppTheme.surfaceDark : AppTheme.surfaceLight;
-    final borderColor = isDark ? Colors.white.withOpacity(0.0) : Colors.black.withOpacity(0.0);
+    const borderColor = Colors.transparent;
 
     // 3 halaman: Beranda, Laporan, Kategori
     final pages = [
@@ -193,13 +192,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       decoration: BoxDecoration(
         color: surfaceColor,
-        boxShadow: [
-          BoxShadow(
-            color: isDark ? Colors.black.withOpacity(0.4) : Colors.black.withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
       ),
       child: SafeArea(
         child: SizedBox(
@@ -374,28 +366,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _cardSelisih(double selisih, bool isLaba, bool isDark, Color surfaceColor,
       Color borderColor, Color textSec) {
     final color = isLaba ? AppTheme.success : AppTheme.danger;
-    return ElevatedCard(
+    final gradient = isLaba ? AppTheme.gradientSuccess : AppTheme.gradientDanger;
+    return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
-      color: isDark ? AppTheme.surface2Dark : AppTheme.surfaceLight,
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Selisih Kas Bulan Ini', style: TextStyle(fontSize: 12, color: textSec)),
+        Text('Selisih Kas Bulan Ini',
+            style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withOpacity(0.85),
+                fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         Text(_currencyFormat.format(selisih.abs()),
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800,
-                color: color, letterSpacing: -1)),
-        const SizedBox(height: 8),
+            style: const TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: -1)),
+        const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: Colors.white.withOpacity(0.2),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(isLaba ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                size: 13, color: color),
+                size: 13, color: Colors.white),
             const SizedBox(width: 4),
             Text(isLaba ? 'Laba Bersih' : 'Rugi',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+                style: const TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
           ]),
         ),
       ]),
