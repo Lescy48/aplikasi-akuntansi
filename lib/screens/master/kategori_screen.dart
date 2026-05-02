@@ -56,40 +56,43 @@ class _KategoriScreenState extends State<KategoriScreen>
   }
 
   // Daftar icon yang bisa dipilih user
-  static const List<Map<String, dynamic>> _iconOptions = [
+  static List<Map<String, dynamic>> get _iconOptions => [
     // Pekerjaan & Keuangan
-    {'icon': 0xe8d6, 'label': 'Kerja'},           // work
-    {'icon': 0xe838, 'label': 'Bintang'},          // star
-    {'icon': 0xe850, 'label': 'Dompet'},           // account_balance_wallet
-    {'icon': 0xea12, 'label': 'Toko'},             // storefront
-    {'icon': 0xe6e1, 'label': 'Grafik'},           // show_chart
-    {'icon': 0xe2eb, 'label': 'Tabungan'},         // savings
+    {'icon': Icons.payments_rounded.codePoint,           'label': 'Gaji'},
+    {'icon': Icons.card_giftcard_rounded.codePoint,      'label': 'Bonus'},
+    {'icon': Icons.account_balance_wallet_rounded.codePoint, 'label': 'Dompet'},
+    {'icon': Icons.storefront_rounded.codePoint,         'label': 'Toko'},
+    {'icon': Icons.trending_up_rounded.codePoint,        'label': 'Grafik'},
+    {'icon': Icons.savings_rounded.codePoint,            'label': 'Tabungan'},
+    {'icon': Icons.sell_rounded.codePoint,               'label': 'Jual'},
+    {'icon': Icons.account_balance_rounded.codePoint,    'label': 'Bank'},
     // Makanan & Minuman
-    {'icon': 0xe56c, 'label': 'Makan'},            // restaurant
-    {'icon': 0xe541, 'label': 'Kafe'},             // local_cafe
-    {'icon': 0xe547, 'label': 'Groceri'},          // local_grocery_store
-    {'icon': 0xef63, 'label': 'Bayar'},            // payments
-    {'icon': 0xe231, 'label': 'ATM'},              // local_atm
-    {'icon': 0xf05b, 'label': 'Jual'},             // sell
+    {'icon': Icons.restaurant_rounded.codePoint,         'label': 'Makan'},
+    {'icon': Icons.local_cafe_rounded.codePoint,         'label': 'Kafe'},
+    {'icon': Icons.local_grocery_store_rounded.codePoint,'label': 'Groceri'},
+    {'icon': Icons.local_atm_rounded.codePoint,          'label': 'ATM'},
     // Transport
-    {'icon': 0xe1d0, 'label': 'Mobil'},            // directions_car
-    {'icon': 0xe1d6, 'label': 'Bus'},              // directions_bus
-    {'icon': 0xe539, 'label': 'Pesawat'},          // flight
-    {'icon': 0xe88a, 'label': 'Rumah'},            // home
-    {'icon': 0xe63e, 'label': 'Wifi'},             // wifi
-    {'icon': 0xeb43, 'label': 'Gym'},              // fitness_center
+    {'icon': Icons.directions_car_rounded.codePoint,     'label': 'Mobil'},
+    {'icon': Icons.directions_bus_rounded.codePoint,     'label': 'Bus'},
+    {'icon': Icons.flight_rounded.codePoint,             'label': 'Pesawat'},
+    {'icon': Icons.two_wheeler_rounded.codePoint,        'label': 'Motor'},
+    // Rumah & Utilitas
+    {'icon': Icons.home_rounded.codePoint,               'label': 'Rumah'},
+    {'icon': Icons.bolt_rounded.codePoint,               'label': 'Listrik'},
+    {'icon': Icons.wifi_rounded.codePoint,               'label': 'Wifi'},
+    {'icon': Icons.water_drop_rounded.codePoint,         'label': 'Air'},
     // Belanja & Gaya Hidup
-    {'icon': 0xf1cc, 'label': 'Belanja'},          // shopping_bag
-    {'icon': 0xf19e, 'label': 'Pakaian'},          // checkroom
-    {'icon': 0xea38, 'label': 'Games'},            // sports_esports
-    {'icon': 0xe02c, 'label': 'Film'},             // movie
-    {'icon': 0xe405, 'label': 'Musik'},            // music_note
-    {'icon': 0xe8f6, 'label': 'Kado'},             // card_giftcard
+    {'icon': Icons.shopping_bag_rounded.codePoint,       'label': 'Belanja'},
+    {'icon': Icons.checkroom_rounded.codePoint,          'label': 'Pakaian'},
+    {'icon': Icons.sports_esports_rounded.codePoint,     'label': 'Games'},
+    {'icon': Icons.movie_rounded.codePoint,              'label': 'Film'},
+    {'icon': Icons.music_note_rounded.codePoint,         'label': 'Musik'},
     // Kesehatan & Pendidikan
-    {'icon': 0xe87d, 'label': 'Kesehatan'},        // favorite
-    {'icon': 0xf109, 'label': 'Medis'},            // medical_services
-    {'icon': 0xe80c, 'label': 'Sekolah'},          // school
-    {'icon': 0xe867, 'label': 'Lainnya'},          // label
+    {'icon': Icons.favorite_rounded.codePoint,           'label': 'Kesehatan'},
+    {'icon': Icons.medical_services_rounded.codePoint,   'label': 'Medis'},
+    {'icon': Icons.fitness_center_rounded.codePoint,     'label': 'Gym'},
+    {'icon': Icons.school_rounded.codePoint,             'label': 'Sekolah'},
+    {'icon': Icons.label_rounded.codePoint,              'label': 'Lainnya'},
   ];
 
   Future<void> _tambahKategori() async {
@@ -147,7 +150,7 @@ class _KategoriScreenState extends State<KategoriScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          IconData(int.parse(selectedIcon), fontFamily: 'MaterialIcons'),
+                          IconData(int.parse(selectedIcon.startsWith('0x') ? selectedIcon.substring(2) : selectedIcon, radix: selectedIcon.startsWith('0x') ? 16 : 10), fontFamily: 'MaterialIcons'),
                           color: Colors.white, size: 22,
                         ),
                       ),
@@ -433,7 +436,7 @@ class _KategoriScreenState extends State<KategoriScreen>
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
-                      IconData(int.parse(kategori.icon), fontFamily: 'MaterialIcons'),
+                      IconData(int.parse(kategori.icon.startsWith('0x') ? kategori.icon.substring(2) : kategori.icon, radix: kategori.icon.startsWith('0x') ? 16 : 10), fontFamily: 'MaterialIcons'),
                       color: Colors.white, size: 20,
                     ),
                   ),

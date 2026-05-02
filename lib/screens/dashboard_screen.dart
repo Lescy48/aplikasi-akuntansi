@@ -51,15 +51,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final chartIn = List.filled(7, 0.0);
     final chartOut = List.filled(7, 0.0);
-    for (int i = 0; i < 7; i++) {
-      final day = now.subtract(Duration(days: 6 - i));
-      final dari = DateTime(day.year, day.month, day.day);
-      final sampai = DateTime(day.year, day.month, day.day, 23, 59, 59);
-      final list = await _db.getTransaksiByRentang(dari, sampai);
-      for (final t in list) {
-        if (t.jenis == 'pemasukan') chartIn[i] += t.nominal;
-        else chartOut[i] += t.nominal;
-      }
+    final dari7Hari = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
+    final sampai7Hari = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    final listChart = await _db.getTransaksiByRentang(dari7Hari, sampai7Hari);
+    for (final t in listChart) {
+      final i = 6 - now.difference(DateTime(t.tanggal.year, t.tanggal.month, t.tanggal.day)).inDays;
+      if (i < 0 || i > 6) continue;
+      if (t.jenis == 'pemasukan') chartIn[i] += t.nominal;
+      else chartOut[i] += t.nominal;
     }
 
     if (!mounted) return;
@@ -366,48 +365,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _cardSelisih(double selisih, bool isLaba, bool isDark, Color surfaceColor,
       Color borderColor, Color textSec) {
     final color = isLaba ? AppTheme.success : AppTheme.danger;
-    final gradient = isLaba ? AppTheme.gradientSuccess : AppTheme.gradientDanger;
+    final textPrim = isDark ? AppTheme.textPrimDark : AppTheme.textPrimLight;
+    final bgColor = color.withOpacity(isDark ? 0.12 : 0.08);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: gradient,
+        color: bgColor,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Selisih Kas Bulan Ini',
-            style: TextStyle(
-                fontSize: 12,
-                color: Colors.white.withOpacity(0.85),
-                fontWeight: FontWeight.w500)),
-        const SizedBox(height: 6),
-        Text(_currencyFormat.format(selisih.abs()),
-            style: const TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                letterSpacing: -1)),
+        Row(children: [
+          Icon(isLaba ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+              size: 14, color: color),
+          const SizedBox(width: 6),
+          Text('Selisih Kas Bulan Ini',
+              style: TextStyle(
+                  fontSize: 12, color: textSec, fontWeight: FontWeight.w500)),
+        ]),
+        const SizedBox(height: 10),
+        Text(
+          '${isLaba ? '+' : '-'}${_currencyFormat.format(selisih.abs())}',
+          style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: color,
+              letterSpacing: -1),
+        ),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: color.withOpacity(isDark ? 0.15 : 0.1),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(isLaba ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                size: 13, color: Colors.white),
+                size: 13, color: color),
             const SizedBox(width: 4),
             Text(isLaba ? 'Laba Bersih' : 'Rugi',
-                style: const TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600, color: color)),
           ]),
         ),
       ]),

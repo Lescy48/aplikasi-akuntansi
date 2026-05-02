@@ -12,6 +12,7 @@
 
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:flutter/material.dart';
 import '../models/transaksi_model.dart';
 import '../models/kategori_model.dart';
 
@@ -97,25 +98,27 @@ class DatabaseService {
   // Data awal yang langsung tersedia saat install
   // ============================================================
   Future<void> _insertKategoriDefault(Database db) async {
+    String cp(IconData icon) => '0x${icon.codePoint.toRadixString(16)}';
+
     final pemasukan = [
-      {'nama': 'Gaji',       'icon': '0xe8d6'}, // work
-      {'nama': 'Bonus',      'icon': '0xe838'}, // star
-      {'nama': 'Penjualan',  'icon': '0xea12'}, // storefront
-      {'nama': 'Investasi',  'icon': '0xe6e1'}, // show_chart
-      {'nama': 'Lainnya',    'icon': '0xe867'}, // label
+      {'nama': 'Gaji',      'icon': cp(Icons.payments_rounded)},
+      {'nama': 'Bonus',     'icon': cp(Icons.card_giftcard_rounded)},
+      {'nama': 'Penjualan', 'icon': cp(Icons.storefront_rounded)},
+      {'nama': 'Investasi', 'icon': cp(Icons.trending_up_rounded)},
+      {'nama': 'Lainnya',   'icon': cp(Icons.label_rounded)},
     ];
     for (final k in pemasukan) {
       await db.insert('kategori', {'nama': k['nama'], 'jenis': 'pemasukan', 'icon': k['icon']});
     }
 
     final pengeluaran = [
-      {'nama': 'Belanja',       'icon': '0xf1cc'}, // shopping_bag
-      {'nama': 'Hiburan',       'icon': '0xe02c'}, // movie
-      {'nama': 'Kesehatan',     'icon': '0xe87d'}, // favorite
-      {'nama': 'Lainnya',       'icon': '0xe867'}, // label
-      {'nama': 'Listrik & Air', 'icon': '0xea23'}, // bolt
-      {'nama': 'Makan & Minum', 'icon': '0xe56c'}, // restaurant
-      {'nama': 'Transport',     'icon': '0xe1d0'}, // directions_car
+      {'nama': 'Belanja',       'icon': cp(Icons.shopping_bag_rounded)},
+      {'nama': 'Hiburan',       'icon': cp(Icons.movie_rounded)},
+      {'nama': 'Kesehatan',     'icon': cp(Icons.favorite_rounded)},
+      {'nama': 'Lainnya',       'icon': cp(Icons.label_rounded)},
+      {'nama': 'Listrik & Air', 'icon': cp(Icons.bolt_rounded)},
+      {'nama': 'Makan & Minum', 'icon': cp(Icons.restaurant_rounded)},
+      {'nama': 'Transport',     'icon': cp(Icons.directions_car_rounded)},
     ];
     for (final k in pengeluaran) {
       await db.insert('kategori', {'nama': k['nama'], 'jenis': 'pengeluaran', 'icon': k['icon']});
